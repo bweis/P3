@@ -54,10 +54,10 @@ public class P3 {
                 } else if (tokens[0].equals("CREATE")) {
                     if (tokens[1].equals("ROLE")) {
                         //First check if current user is admin:
-                        if (currentRole == null || !currentRole.equals("ADMIN")){
+                        if (currentRole == null || !currentRole.equals("ADMIN")) {
                             System.out.println("Authorization failure");
                         } else {
-                            System.out.println("So far so good");
+                            CreateRole(tokens, conn, stmt);
                         }
 
                     } else if (tokens[1].equals("USER")) {
@@ -112,7 +112,7 @@ public class P3 {
 
     }
 
-    private static void Login(String[] tokens, Connection conn, Statement stmt){
+    private static void Login(String[] tokens, Connection conn, Statement stmt) {
         String loginString = "Select us.USERID as userid, r.ROLEID as roleid, r.RoleName as rolename, r.Encryptionkey as encryptionkey From USERS us Left Join UsersRoles ur on us.userId = ur.userId Left Join Roles r on r.roleId = ur.roleid where username = ? AND password = ?";
         try {
             conn.setAutoCommit(false);
@@ -134,24 +134,8 @@ public class P3 {
                 if (rs.getString("rolename") == null) {
                     System.out.println("WARNING: No Role Existing for Current User");
                 }
-                    currentRole = rs.getString("rolename");
-                    currentKey = rs.getString("encryptionkey");
-
-
-/*                //Get the roles information from the database
-                String rolesString = "Select Roleid, rolename, encryptionkey from ROLES where roleid = ?";
-                PreparedStatement roleStatement = conn.prepareStatement(rolesString);
-                roleStatement.setInt(1, currentId);
-                rs = roleStatement.executeQuery();*/
-
-                //Setting class user variables
-/*                if (rs.next()) {
-                    currentRole = rs.getString("rolename");
-                    currentKey = rs.getString("encryptionkey");
-                } else {
-                    //If the query found no RoleId that matched the current userId then states that
-                    System.out.println("Warning: no roles for this user");
-                }*/
+                currentRole = rs.getString("rolename");
+                currentKey = rs.getString("encryptionkey");
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -159,8 +143,26 @@ public class P3 {
 
     }
 
-    private static void CreateRole(String[] tokens, Connection conn, Statement stmt){
-
+    private static void CreateRole(String[] tokens, Connection conn, Statement stmt) {
+        String createString = "insert into Roles values(?, ?, ?)";
+        try{
+            conn.setAutoCommit(false);
+            ResultSet rs = stmt.executeQuery("select max(roleid) as maxid from roles");
+            int newid = 1;
+            if (rs.next()){
+                newid = rs.getInt("maxid") + 1;
+            }
+            PreparedStatement createStatement = conn.prepareStatement(createString);
+            createStatement.setInt(1, newid);
+            createStatement.setString(2, tokens[2]);
+            createStatement.setString(3, tokens[3]);
+            Boolean successCreate = createStatement.execute();
+            if (successCreate){
+                System.out.println("User created successfully");
+            }
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
     }
 
 }
