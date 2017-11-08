@@ -75,7 +75,7 @@ public class P3 {
                         if (currentRole == null || !currentRole.equals("ADMIN")) {
                             System.out.println("Authorization failure");
                         } else {
-                            CreateUser(tokens, conn, stmt);
+                            GrantRole(tokens, conn, stmt);
                         }
                         System.out.println();
                     } else if (tokens[1].equals("PRIVILEGE")) {
@@ -194,7 +194,34 @@ public class P3 {
     }
 
     private static void GrantRole(String[] tokens, Connection conn, Statement stmt){
-
+        try {
+            conn.setAutoCommit(false);
+            String uidString = "Select userid from users where username = ?";
+            String ridString = "Select roleid from roles where rolename = ?";
+            PreparedStatement uidStatement = conn.prepareStatement(uidString);
+            PreparedStatement ridStatement = conn.prepareStatement(ridString);
+            uidStatement.setString(1, tokens[2]);
+            ridStatement.setString(1, tokens[3]);
+            int uid = -1;
+            int rid = -1;
+            ResultSet uiRS, riRS;
+            uiRS = uidStatement.executeQuery();
+            riRS = ridStatement.executeQuery();
+            if (uiRS.next()) uid = uiRS.getInt("userid");
+            if (riRS.next()) rid = riRS.getInt("roleid");
+            String grantRoleString = "insert into UsersRoles values(?, ?)";
+            PreparedStatement grantRoleStatement = conn.prepareStatement(grantRoleString);
+            if (uid == -1 || rid == -1){
+                System.out.println("Cannot find user");
+                return;
+            }
+            grantRoleStatement.setInt(1,uid);
+            grantRoleStatement.setInt(2,rid);
+            grantRoleStatement.executeQuery();
+            System.out.println("Role assigned successfully");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
 
