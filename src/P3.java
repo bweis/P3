@@ -12,7 +12,7 @@ public class P3 {
     static String currentUsername = null;
     static String currentPass = null;
     static int currentId = -1;
-    static String currentRole = null;
+    static String currentRole = null; //is empty string if
     static String currentKey = null;
 
     public static void main(String[] args) {
@@ -53,6 +53,12 @@ public class P3 {
                     System.out.println();
                 } else if (tokens[0].equals("CREATE")) {
                     if (tokens[1].equals("ROLE")) {
+                        //First check if current user is admin:
+                        if (currentRole == null || !currentRole.equals("ADMIN")){
+                            System.out.println("Authorization failure");
+                        } else {
+                            System.out.println("So far so good");
+                        }
 
                     } else if (tokens[1].equals("USER")) {
 
@@ -107,7 +113,7 @@ public class P3 {
     }
 
     private static void Login(String[] tokens, Connection conn, Statement stmt){
-        String loginString = "Select USERID from Users where USERNAME = ? AND Password = ?";
+        String loginString = "Select us.USERID as userid, r.ROLEID as roleid, r.RoleName as rolename, r.Encryptionkey as encryptionkey From USERS us Left Join UsersRoles ur on us.userId = ur.userId Left Join Roles r on r.roleId = ur.roleid where username = ? AND password = ?";
         try {
             conn.setAutoCommit(false);
             PreparedStatement loginStatement = conn.prepareStatement(loginString);
@@ -125,24 +131,35 @@ public class P3 {
                 currentPass = tokens[2];
                 currentId = rs.getInt("userid");
 
-                //Get the roles information from the database
+                if (rs.getString("rolename") == null) {
+                    System.out.println("WARNING: No Role Existing for Current User");
+                }
+                    currentRole = rs.getString("rolename");
+                    currentKey = rs.getString("encryptionkey");
+
+
+/*                //Get the roles information from the database
                 String rolesString = "Select Roleid, rolename, encryptionkey from ROLES where roleid = ?";
                 PreparedStatement roleStatement = conn.prepareStatement(rolesString);
                 roleStatement.setInt(1, currentId);
-                rs = roleStatement.executeQuery();
+                rs = roleStatement.executeQuery();*/
 
                 //Setting class user variables
-                if (rs.next()) {
+/*                if (rs.next()) {
                     currentRole = rs.getString("rolename");
                     currentKey = rs.getString("encryptionkey");
                 } else {
                     //If the query found no RoleId that matched the current userId then states that
                     System.out.println("Warning: no roles for this user");
-                }
+                }*/
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
+    }
+
+    private static void CreateRole(String[] tokens, Connection conn, Statement stmt){
 
     }
 
