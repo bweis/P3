@@ -9,16 +9,15 @@ public class P3 {
     static final String USER = "pshoroff";
     static final String PASS = "vbNaX0xU";
 
+    static String currentUsername = null;
+    static String currentPass = null;
+    static int currentId = -1;
+    static String currentRole = null;
+    static String currentKey = null;
+
     public static void main(String[] args) {
         Connection conn = null;
         Statement stmt = null;
-
-        //User variables
-        String currentUsername = null;
-        String currentPass = null;
-        int currentId = -1;
-        String currentRole = null;
-        String currentKey = null;
 
         try {
             System.out.println("Connecting to database...");
@@ -43,44 +42,14 @@ public class P3 {
             int commandCount = 1;
 
             while ((line = inFileBuffer.readLine()) != null) {
+
+                //Outputting desired information
                 System.out.println(commandCount + ": " + line);
                 String[] tokens = line.split("\\s");
 
                 //Decision making
                 if (tokens[0].equals("LOGIN")) {
-                    //Setting up the query to check user
-                    String loginString = "Select USERID from Users where USERNAME = ? AND Password = ?";
-                    conn.setAutoCommit(false);
-                    PreparedStatement loginStatement = conn.prepareStatement(loginString);
-                    loginStatement.setString(1, tokens[1]);
-                    loginStatement.setString(2, tokens[2]);
-                    ResultSet rs = loginStatement.executeQuery();
-                    //Making sure the user exists
-                    if (!rs.next()) {
-                        System.out.println("Invalid login");
-                    } else { //If the user does exist:
-                        System.out.println("Login successful");
-
-                        //Find the UserRole of the user:
-                        currentUsername = tokens[1];
-                        currentPass = tokens[2];
-                        currentId = rs.getInt("userid");
-
-                        //Get the roles information from the database
-                        String rolesString = "Select Roleid, rolename, encryptionkey from ROLES where roleid = ?";
-                        PreparedStatement roleStatement = conn.prepareStatement(rolesString);
-                        roleStatement.setInt(1, currentId);
-                        rs = roleStatement.executeQuery();
-
-                        //Setting class user variables
-                        if (rs.next()) {
-                            currentRole = rs.getString("rolename");
-                            currentKey = rs.getString("encryptionkey");
-                        } else {
-                            //If the query found no RoleId that matched the current userId then states that
-                            System.out.println("Warning: no roles for this user");
-                        }
-                    }
+                    Login(tokens, conn, stmt);
                     System.out.println();
                 } else if (tokens[0].equals("CREATE")) {
                     if (tokens[1].equals("ROLE")) {
@@ -137,6 +106,45 @@ public class P3 {
 
     }
 
+    private static void Login(String[] tokens, Connection conn, Statement stmt){
+        String loginString = "Select USERID from Users where USERNAME = ? AND Password = ?";
+        try {
+            conn.setAutoCommit(false);
+            PreparedStatement loginStatement = conn.prepareStatement(loginString);
+            loginStatement.setString(1, tokens[1]);
+            loginStatement.setString(2, tokens[2]);
+            ResultSet rs = loginStatement.executeQuery();
+            //Making sure the user exists
+            if (!rs.next()) {
+                System.out.println("Invalid login");
+            } else { //If the user does exist:
+                System.out.println("Login successful");
+
+                //Find the UserRole of the user:
+                currentUsername = tokens[1];
+                currentPass = tokens[2];
+                currentId = rs.getInt("userid");
+
+                //Get the roles information from the database
+                String rolesString = "Select Roleid, rolename, encryptionkey from ROLES where roleid = ?";
+                PreparedStatement roleStatement = conn.prepareStatement(rolesString);
+                roleStatement.setInt(1, currentId);
+                rs = roleStatement.executeQuery();
+
+                //Setting class user variables
+                if (rs.next()) {
+                    currentRole = rs.getString("rolename");
+                    currentKey = rs.getString("encryptionkey");
+                } else {
+                    //If the query found no RoleId that matched the current userId then states that
+                    System.out.println("Warning: no roles for this user");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
 
 }
 
