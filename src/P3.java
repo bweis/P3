@@ -12,8 +12,7 @@ public class P3 {
     static String currentUsername = null;
     static String currentPass = null;
     static int currentId = -1;
-    static String currentRole = null; //is empty string if
-    static String currentKey = null;
+    static Boolean admin = false; //is null if not admin
 
     public static void main(String[] args) {
         Connection conn = null;
@@ -54,14 +53,14 @@ public class P3 {
                 } else if (tokens[0].equals("CREATE")) {
                     if (tokens[1].equals("ROLE")) {
                         //First check if current user is admin:
-                        if (currentRole == null || !currentRole.equals("ADMIN")) {
+                        if (!admin) {
                             System.out.println("Authorization failure");
                         } else {
                             CreateRole(tokens, conn, stmt);
                         }
                         System.out.println();
                     } else if (tokens[1].equals("USER")) {
-                        if (currentRole == null || !currentRole.equals("ADMIN")) {
+                        if (!admin) {
                             System.out.println("Authorization failure");
                         } else {
                             CreateUser(tokens, conn, stmt);
@@ -72,19 +71,29 @@ public class P3 {
                     }
                 } else if (tokens[0].equals("GRANT")) {
                     if (tokens[1].equals("ROLE")) {
-                        if (currentRole == null || !currentRole.equals("ADMIN")) {
+                        if (!admin) {
                             System.out.println("Authorization failure");
                         } else {
                             GrantRole(tokens, conn, stmt);
                         }
                         System.out.println();
                     } else if (tokens[1].equals("PRIVILEGE")) {
-
+                        if (!admin) {
+                            System.out.println("Authorization failure");
+                        } else {
+                            GrantPrivilege(tokens, conn, stmt);
+                        }
+                        System.out.println();
                     } else {
                         //THROW EXCEPTION HERE
                     }
                 } else if (tokens[0].equals("REVOKE") && tokens[1].equals("PRIVILEGE")) {
-
+                    if (!admin){
+                        System.out.println("Authorization failure");
+                    } else {
+                        RevokePrivilege(tokens, conn, stmt);
+                    }
+                    System.out.println();
                 } else if (tokens[0].equals("INSERT") && tokens[1].equals("INTO")) {
 
                 } else if (tokens[0].equals("SELECT")) {
@@ -92,7 +101,6 @@ public class P3 {
                 } else if (tokens[0].equals("QUIT")) {
 
                 }
-
                 commandCount++;
             }
         } catch (SQLException se) {
@@ -140,12 +148,18 @@ public class P3 {
                 currentUsername = tokens[1];
                 currentPass = tokens[2];
                 currentId = rs.getInt("userid");
-
-                if (rs.getString("rolename") == null) {
-                    System.out.println("WARNING: No Role Existing for Current User");
+                String adminCheckString = "Select us.USERID as userid From USERS us Left Join UsersRoles ur on us.userId = ur.userId Left Join Roles r on r.roleId = ur.roleid where username = ? AND password = ? AND r.rolename = ?";
+                PreparedStatement adminCheckStatement = conn.prepareStatement(adminCheckString);
+                adminCheckStatement.setString(1, tokens[1]);
+                adminCheckStatement.setString(2, tokens[2]);
+                adminCheckStatement.setString(3, "ADMIN");
+                ResultSet adminSet = adminCheckStatement.executeQuery();
+                if (adminSet.next()){
+                    admin = true;
+                    System.out.println("YES IS ADMIN");
+                } else {
+                    admin = false;
                 }
-                currentRole = rs.getString("rolename");
-                currentKey = rs.getString("encryptionkey");
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -219,6 +233,92 @@ public class P3 {
             grantRoleStatement.setInt(2,rid);
             grantRoleStatement.executeQuery();
             System.out.println("Role assigned successfully");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void GrantPrivilege(String[] tokens, Connection conn, Statement stmt){
+        try {
+            conn.setAutoCommit(false);
+            //Prepared statement strings:
+            String rpString = "insert into RolesPrivileges  values(?, ?, ?)";
+            String roleString = "select roleid from roles where rolename = ?";
+            String privString = "select privid from Privileges where privname = ?";
+
+            //Prepared Statement initializations:
+            PreparedStatement roleStatement = conn.prepareStatement(roleString);
+            PreparedStatement privStatement = conn.prepareStatement(privString);
+            PreparedStatement rpStatement = conn.prepareStatement(rpString);
+
+            //Adding parameters to PS:
+            roleStatement.setString(1, tokens[4]);
+            privStatement.setString(1, tokens[2]);
+
+            //ResultSets:
+            ResultSet rpSet, roleSet, privSet;
+            roleSet = roleStatement.executeQuery();
+            privSet = privStatement.executeQuery();
+
+            int roleId = -1;
+            int privId = -1;
+
+            if (roleSet.next()) roleId = roleSet.getInt("roleid");
+            if (privSet.next()) privId = privSet.getInt("privid");
+
+            if (roleId == -1 || privId == -1){
+                System.out.println("Cannot find role and/or privilege");
+                return;
+            }
+
+            rpStatement.setInt(1, roleId);
+            rpStatement.setInt(2, privId);
+            rpStatement.setString(3, tokens[6]);
+            rpStatement.executeQuery();
+            System.out.println("Privilege granted successfully");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void RevokePrivilege(String[] tokens, Connection conn, Statement stmt){
+        try {
+            conn.setAutoCommit(false);
+            //Prepared statement strings:
+            String rpString = "delete from rolesprivileges where Roleid = ? AND PrivId = ? AND tablename = ?";
+            String roleString = "select roleid from roles where rolename = ?";
+            String privString = "select privid from Privileges where privname = ?";
+
+            //Prepared Statement initializations:
+            PreparedStatement roleStatement = conn.prepareStatement(roleString);
+            PreparedStatement privStatement = conn.prepareStatement(privString);
+            PreparedStatement rpStatement = conn.prepareStatement(rpString);
+
+            //Adding parameters to PS:
+            roleStatement.setString(1, tokens[4]);
+            privStatement.setString(1, tokens[2]);
+
+            //ResultSets:
+            ResultSet rpSet, roleSet, privSet;
+            roleSet = roleStatement.executeQuery();
+            privSet = privStatement.executeQuery();
+
+            int roleId = -1;
+            int privId = -1;
+
+            if (roleSet.next()) roleId = roleSet.getInt("roleid");
+            if (privSet.next()) privId = privSet.getInt("privid");
+
+            if (roleId == -1 || privId == -1){
+                System.out.println("Cannot find role and/or privilege");
+                return;
+            }
+
+            rpStatement.setInt(1, roleId);
+            rpStatement.setInt(2, privId);
+            rpStatement.setString(3, tokens[6]);
+            rpStatement.executeQuery();
+            System.out.println("Privilege revoked successfully");
         } catch (SQLException e) {
             e.printStackTrace();
         }
