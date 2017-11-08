@@ -59,15 +59,25 @@ public class P3 {
                         } else {
                             CreateRole(tokens, conn, stmt);
                         }
-
+                        System.out.println();
                     } else if (tokens[1].equals("USER")) {
-
+                        if (currentRole == null || !currentRole.equals("ADMIN")) {
+                            System.out.println("Authorization failure");
+                        } else {
+                            CreateUser(tokens, conn, stmt);
+                        }
+                        System.out.println();
                     } else {
-                        //THROW EXCEPTION HERE
+                        System.out.println("Do not support Create " + tokens[1] + " command.");
                     }
                 } else if (tokens[0].equals("GRANT")) {
                     if (tokens[1].equals("ROLE")) {
-
+                        if (currentRole == null || !currentRole.equals("ADMIN")) {
+                            System.out.println("Authorization failure");
+                        } else {
+                            CreateUser(tokens, conn, stmt);
+                        }
+                        System.out.println();
                     } else if (tokens[1].equals("PRIVILEGE")) {
 
                     } else {
@@ -157,14 +167,35 @@ public class P3 {
             createStatement.setString(2, tokens[2]);
             createStatement.setString(3, tokens[3]);
             Boolean successCreate = createStatement.execute();
-            if (successCreate){
-                System.out.println("User created successfully");
-            }
+            System.out.println("Role created successfully");
         } catch (SQLException e){
             e.printStackTrace();
         }
     }
 
+    private static void CreateUser(String[] tokens, Connection conn, Statement stmt){
+        String createString = "insert into Users values(?, ?, ?)";
+        try{
+            conn.setAutoCommit(false);
+            ResultSet rs = stmt.executeQuery("select max(userid) as maxid from users");
+            int newid = 1;
+            if (rs.next()){
+                newid = rs.getInt("maxid") + 1;
+            }
+            PreparedStatement createStatement = conn.prepareStatement(createString);
+            createStatement.setInt(1, newid);
+            createStatement.setString(2, tokens[2]);
+            createStatement.setString(3, tokens[3]);
+            Boolean successCreate = createStatement.execute();
+            System.out.println("User created successfully");
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
+
+    private static void GrantRole(String[] tokens, Connection conn, Statement stmt){
+
+    }
 }
 
 
